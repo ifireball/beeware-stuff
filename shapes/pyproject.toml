@@ -1,0 +1,45 @@
+[build-system]
+requires = ["briefcase"]
+
+[tool.briefcase]
+project_name = "Shapes"
+bundle = "org.korren"
+version = "0.0.1"
+url = "https://korren.org/shapes"
+license = "GNU General Public License v3 or later (GPLv3+)"
+author = 'Barak Korren'
+author_email = "barak.korren@gmail.com"
+
+[tool.briefcase.app.shapes]
+formal_name = "Shapes"
+description = "Small app for displaying 3D shapes"
+icon = "src/shapes/resources/shapes"
+sources = ['src/shapes']
+requires = []
+
+
+[tool.briefcase.app.shapes.macOS]
+requires = [
+    'toga-cocoa>=0.3.0.dev18',
+]
+
+[tool.briefcase.app.shapes.linux]
+requires = [
+    'toga-gtk>=0.3.0.dev18',
+]
+
+[tool.briefcase.app.shapes.windows]
+requires = [
+    'toga-winforms>=0.3.0.dev18',
+]
+
+# Mobile deployments
+[tool.briefcase.app.shapes.iOS]
+requires = [
+    'toga-iOS>=0.3.0.dev18',
+]
+
+[tool.briefcase.app.shapes.android]
+requires = [
+    'toga-android>=0.3.0.dev18',
+]
