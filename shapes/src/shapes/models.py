@@ -3,7 +3,9 @@
 from collections import namedtuple
 import numpy as np
 
-Shape = namedtuple('Shape', ['vertices', 'faces'])
+from . import transforms as tr
+
+Shape = namedtuple('Shape', ['vertices', 'faces', 'normals'])
 
 def box():
     vertices = np.array([
@@ -18,9 +20,6 @@ def box():
         [7, 5, 4, 6],
         [7, 6, 2, 3],
     ])
-    return Shape(vertices, faces)
-
-def normals(vertices, faces):
-    e1 = vertices[faces[:,1], 0:3] - vertices[faces[:,0], 0:3]
-    e2 = vertices[faces[:,2], 0:3] - vertices[faces[:,1], 0:3]
-    return np.cross(e1, e2)
+    normals = tr.normals(vertices, faces)
+    normals = np.hstack((normals, np.ones((len(normals), 1))))
+    return Shape(vertices, faces, normals)

@@ -193,25 +193,36 @@ class Shapes(toga.App):
     def render_event(self, widget):
         self.render()
 
+    def world_model(self):
+        rotations = tr.rotate_z(self._z_rotation) @ tr.rotate_x(self._x_rotation)
+        world_transform = rotations @ tr.move(0, 5)
+
+        vertices = self._draw_shape.vertices
+        vertices = vertices @ world_transform
+
+        normals = self._draw_shape.normals
+        normals = normals @ rotations
+
+        faces = self._draw_shape.faces
+        faces = faces[normals[:,1] < 0,:]
+
+        return vertices, faces
+
     def render(self):
         cw = self.canvas.layout.content_width
         ch = self.canvas.layout.content_height
 
-        vertices = self._draw_shape.vertices
-        vertices = vertices @ tr.rotate_z(self._z_rotation)
-        vertices = vertices @ tr.rotate_x(self._x_rotation)
-        vertices = vertices @ tr.move(0, 5)
+        vertices, faces = self.world_model()
+
         vertices = tr.perspective(vertices, 2)
-        vertices = vertices @ tr.scale(cw/2, cw/2, -cw/2)
-        vertices = vertices @ tr.move(cw/2, 0, ch/2)
+        screen_transform = tr.scale(cw/2, cw/2, -cw/2) @ tr.move(cw/2, 0, ch/2)
+        vertices = vertices @ screen_transform
 
         self.canvas.clear()
         with self.canvas.fill(color='white') as fill:
             fill.rect(x=0, y=0, width=cw, height=ch)
-        for f in self._draw_shape.faces:
-            edge1 = np.delete(vertices[f[1]] - vertices[f[0]], 3)
-            edge2 = np.delete(vertices[f[2]] - vertices[f[1]], 3)
-            normal = np.cross(edge1, edge2)
+        normals = tr.normals(vertices, faces)
+        for f, normal in zip(faces, normals):
             if normal[1] < 0:
                 continue
 
