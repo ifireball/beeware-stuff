@@ -1,0 +1,39 @@
+{
+    "name": "python3-toga-gtk",
+    "buildsystem": "simple",
+    "build-commands": [
+        "pip3 install --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} toga-gtk==0.3.0.dev15"
+    ],
+    "sources": [
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/56/3f/f03efe63c2bdc72763ac39777c9ebbab98605ced5c74aefe48b4fa0abb4d/travertino-0.1.2-py3-none-any.whl",
+            "sha256": "7277f00ad6a88673ec7da3bc787e552421ab366062a09007e30d453121b5611e"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/c3/f1/6a5d13758bb94b75d17a07c68fc239c571b2e45b700953cc29aff8e254a3/toga_gtk-0.3.0.dev15-py3-none-any.whl",
+            "sha256": "73b898409a01091f0e6f2de81d58c34a1036d6f8f3a0452eefe1414748ea4626"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/3c/1a/c0478ecab31baae50fda9956547788afbd0ca563adc52c9b03cab30f17eb/pycairo-1.18.2.tar.gz",
+            "sha256": "dcb853fd020729516e8828ad364084e752327d4cff8505d20b13504b32b16531"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/46/8a/b183f3edc812d4d28c8b671a922b5bc2863be5d38c56b3ad9155815e78dd/PyGObject-3.34.0.tar.gz",
+            "sha256": "2acb0daf2b3a23a90f52066cc23d1053339fee2f5f7f4275f8baa3704ae0c543"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/92/cb/d2a0e4899cde5aa797e31d77a0a7422dcd188d880bb38d0e9d1b1196e5c6/gbulb-0.6.1.tar.gz",
+            "sha256": "119bcf9961a976a8240fee667722b41a23603119b7a0037d03f95650de062fc2"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/f8/19/fce516b24baef0ae7edd04e629cb8b0c41a3d4f1fcd9a90ed8014c43cb49/toga_core-0.3.0.dev15-py3-none-any.whl",
+            "sha256": "3c407ebae70ef9e4aa736ccaaefe9a33c3cdcbb18c6989919297e9f502c53ee5"
+        }
+    ]
+}
