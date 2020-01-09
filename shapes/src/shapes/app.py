@@ -2,7 +2,7 @@
 Small app for displaying 3D shapes
 """
 from functools import partial
-from math import pi
+from math import pi, cos
 import numpy as np
 from time import time
 import asyncio
@@ -50,13 +50,15 @@ class Shapes(toga.App):
                 self.make_shapes_box(),
                 self.make_colors_box(),
                 self.make_motion_box(),
-                self.make_fps_box()
+                self.make_stats_box()
             ]),
         ])
 
         self.main_window = toga.MainWindow(title=self.formal_name)
         self.main_window.content = self.main_box
         self.main_window.show()
+
+        self.shape_segments.value = 4
 
     def make_colors_box(self):
         color_buttons = [
@@ -84,21 +86,22 @@ class Shapes(toga.App):
         )
 
     def make_shapes_box(self):
-        shape_buttons = [
-            toga.Button(
-                'Rect',
-                on_press=partial(self.set_draw_shape, shape=self.rect),
-                style=Pack(width=68, height=68)
-            ),
-            toga.Button(
-                'Ellipse',
-                on_press=partial(self.set_draw_shape, shape=self.ellipse),
-                style=Pack(width=68, height=68)
-            ),
-        ]
+        self.shape_select = toga.Selection(
+            items=['Cylinder', 'Cone'],
+            style=Pack(width=132),
+            on_select = self.set_draw_shape,
+        )
+        self.shape_segments = toga.NumberInput(
+            min_value=3, max_value=20,
+            style=Pack(width=132),
+            on_change = self.set_draw_shape,
+        )
         return toga.Box(
-            style=Pack(direction=ROW),
-            children=shape_buttons
+            style=Pack(direction=COLUMN),
+            children=[
+                self.shape_select,
+                self.shape_segments,
+            ],
         )
 
     def make_motion_box(self):
@@ -127,14 +130,18 @@ class Shapes(toga.App):
             ]
         )
 
-    def make_fps_box(self):
+    def make_stats_box(self):
         self._fps_display = toga.Label('0 FPS', style=Pack(
+            text_align=CENTER, width=132, height=30
+        ))
+        self._polygons_display = toga.Label('0 Polygons', style=Pack(
             text_align=CENTER, width=132, height=30
         ))
         return toga.Box(
             style=Pack(direction=COLUMN, alignment=BOTTOM, flex=1),
             children=[
                 toga.Box(style=Pack(flex=1)),
+                self._polygons_display,
                 self._fps_display,
             ],
         )
@@ -204,15 +211,23 @@ class Shapes(toga.App):
         normals = normals @ rotations
 
         faces = self._draw_shape.faces
-        faces = faces[normals[:,1] < 0,:]
+        backfaces = normals[:,1] < 0
+        faces = faces[backfaces]
+        normals = normals[backfaces,0:3]
 
-        return vertices, faces
+        light_vector = np.array([1., 1., -1.], dtype=np.float32)
+
+        light_cos = np.inner(normals, light_vector) / \
+            (np.linalg.norm(normals, axis=1) * np.linalg.norm(light_vector))
+        colors = [color_ramp(self._draw_color, c) for c in light_cos]
+
+        return vertices, faces, colors
 
     def render(self):
         cw = self.canvas.layout.content_width
         ch = self.canvas.layout.content_height
 
-        vertices, faces = self.world_model()
+        vertices, faces, colors = self.world_model()
 
         vertices = tr.perspective(vertices, 2)
         screen_transform = tr.scale(cw/2, cw/2, -cw/2) @ tr.move(cw/2, 0, ch/2)
@@ -222,29 +237,43 @@ class Shapes(toga.App):
         with self.canvas.fill(color='white') as fill:
             fill.rect(x=0, y=0, width=cw, height=ch)
         normals = tr.normals(vertices, faces)
-        for f, normal in zip(faces, normals):
+        pol_count = 0
+        for f, normal, color in zip(faces, normals, colors):
             if normal[1] < 0:
                 continue
 
-            with self.canvas.stroke(color='black', line_width=4.0) as stroke:
-                with stroke.fill(color=self._draw_color, preserve=True) as fill:
-                    fill.move_to(vertices[f[0]][0], vertices[f[0]][2])
-                    for v in f[1:]:
-                        fill.line_to(vertices[v][0], vertices[v][2])
-                    fill.line_to(vertices[f[0]][0], vertices[f[0]][2])
+            #with self.canvas.stroke(color='black', line_width=4.0) as stroke:
+            with self.canvas.fill(color=color, preserve=True) as fill:
+                fill.move_to(vertices[f[0]][0], vertices[f[0]][2])
+                for v in f[1:]:
+                    fill.line_to(vertices[v][0], vertices[v][2])
+            pol_count += 1
+
+        self._polygons_display.text = '{} Polygons'.format(pol_count)
+
+        #self.draw_color_ramp()
 
         self.canvas.redraw()
 
-    def rect(self, context, w, h):
-        context.rect(x=w / 4, y=h / 4, width=w / 2, height=h / 2)
+    def draw_color_ramp(self, base_color=None, amount=40, x=0, y=0, w=None, h=20):
+        if base_color is None:
+            base_color = self._draw_color
+        if w is None:
+            w = self.canvas.layout.content_width
 
-    def ellipse(self, context, w, h):
-        context.ellipse(x=w/2, y=h/2, radiusx=w/4, radiusy=h/4)
+        for i in range(0, amount):
+            angle = pi * i / amount
+            ang_cos = cos(angle)
+            color = color_ramp(base_color, ang_cos)
+            with self.canvas.fill(color=color) as fill:
+                fill.rect(w * i / amount + x, y, w / amount + 1, h)
 
-    def set_draw_shape(self, widget, shape):
-        # self._draw_shape = shape
-        # self.render()
-        pass
+    def set_draw_shape(self, widget):
+        shape_func = models.cylinder
+        if self.shape_select.value == 'Cone':
+            shape_func = models.cone
+        self._draw_shape = shape_func(int(self.shape_segments.value))
+        self.render()
 
 # this is needed because 'partial' does not work well on async functions until
 # Python 3.8
@@ -254,6 +283,22 @@ def async_partial(func, *args, **kwargs):
         return await func(*args, *nargs, **kwargs)
     return _newfunc
 
+def color_ramp(base_color, ang_cos):
+    edge_percent = 0.8
+    if ang_cos > 0:
+        factor = (1 - ang_cos) * edge_percent + (1. - edge_percent)
+        return rgb(
+            r=int(base_color.r * factor),
+            g=int(base_color.g * factor),
+            b=int(base_color.b * factor),
+        )
+    else:
+        factor = (1 + ang_cos) * edge_percent + (1. - edge_percent)
+        return rgb(
+            r=int(base_color.r * factor + 255 * (1-factor)),
+            g=int(base_color.g * factor + 255 * (1-factor)),
+            b=int(base_color.b * factor + 255 * (1-factor)),
+        )
 
 def main():
     return Shapes()

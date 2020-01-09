@@ -50,6 +50,10 @@ def perspective(vertices, d=1):
     return vertices * tmat
 
 def normals(vertices, faces):
-    e1 = vertices[faces[:,1], 0:3] - vertices[faces[:,0], 0:3]
-    e2 = vertices[faces[:,2], 0:3] - vertices[faces[:,1], 0:3]
+    columns = [
+        [face[column] for face in faces]
+        for column in range(3)
+    ]
+    e1 = vertices[columns[1], 0:3] - vertices[columns[0], 0:3]
+    e2 = vertices[columns[2], 0:3] - vertices[columns[1], 0:3]
     return np.cross(e1, e2)
