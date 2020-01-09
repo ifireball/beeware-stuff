@@ -6,7 +6,7 @@ from math import pi, tan
 
 from . import transforms as tr
 
-Shape = namedtuple('Shape', ['vertices', 'faces', 'normals'])
+Shape = namedtuple('Shape', ['vertices', 'faces', 'normals', 'edges'])
 
 def box():
     vertices = np.array([
@@ -23,7 +23,7 @@ def box():
     ])
     normals = tr.normals(vertices, faces)
     normals = np.hstack((normals, np.ones((len(normals), 1))))
-    return Shape(vertices, faces, normals)
+    return Shape(vertices, faces, normals, [])
 
 def cylinder(segments):
     poly = polygon(segments)
@@ -37,9 +37,17 @@ def cylinder(segments):
         [n, (n+1) % segments, (n+1) % segments + segments, n + segments]
         for n in range(segments)
     ])
+    edges = np.array(
+        [[n, (n+1) % segments, 0, 2+n] for n in range(segments)] +
+        [
+            [(n+1) % segments + segments, n + segments, 1, 2+n]
+            for n in range(segments)
+        ] +
+        [[n, n + segments, 2+(n-1) % segments, 2+n] for n in range(segments)]
+    )
     normals = tr.normals(vertices, faces)
     normals = np.hstack((normals, np.ones((len(normals), 1))))
-    return Shape(vertices, faces, normals)
+    return Shape(vertices, faces, normals, edges)
 
 def cone(segments):
     poly = polygon(segments)
@@ -52,9 +60,13 @@ def cone(segments):
         [n, (n+1) % segments, segments]
         for n in range(segments)
     ])
+    edges = np.array(
+        [[n, (n+1) % segments, 0, 1+n] for n in range(segments)] +
+        [[n, segments, 1+(n-1) % segments, 1+n] for n in range(segments)]
+    )
     normals = tr.normals(vertices, faces)
     normals = np.hstack((normals, np.ones((len(normals), 1))))
-    return Shape(vertices, faces, normals)
+    return Shape(vertices, faces, normals, edges)
 
 def polygon(segments):
     point = np.array([tan(pi/segments), 1., 0. ,1.], dtype=np.float32)

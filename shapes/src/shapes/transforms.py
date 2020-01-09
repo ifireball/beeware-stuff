@@ -57,3 +57,24 @@ def normals(vertices, faces):
     e1 = vertices[columns[1], 0:3] - vertices[columns[0], 0:3]
     e2 = vertices[columns[2], 0:3] - vertices[columns[1], 0:3]
     return np.cross(e1, e2)
+
+def backface_culling(faces, normals, face_indices, backface_indices=None, *args):
+    if backface_indices is None:
+        backface_indices = np.array([], dtype=int)
+    backfaces = normals[:,1] < 0
+    return (
+        faces[backfaces],
+        normals[backfaces],
+        face_indices[backfaces],
+        np.append(backface_indices, face_indices[np.logical_not(backfaces)]),
+        *(arg[backfaces] for arg in args)
+    )
+
+def backface_edge_culling(edges, backface_indices):
+    if len(edges) <= 0:
+        return edges
+    backface_edges = np.logical_not(np.logical_and(
+        np.in1d(edges[:,2], backface_indices),
+        np.in1d(edges[:,3], backface_indices)
+    ))
+    return edges[backface_edges]

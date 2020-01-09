@@ -6,6 +6,7 @@ from math import pi, cos
 import numpy as np
 from time import time
 import asyncio
+from collections import deque
 
 import toga
 from . import toga_fixes
@@ -209,25 +210,29 @@ class Shapes(toga.App):
 
         normals = self._draw_shape.normals
         normals = normals @ rotations
+        normals = normals[:,:3]
 
         faces = self._draw_shape.faces
-        backfaces = normals[:,1] < 0
-        faces = faces[backfaces]
-        normals = normals[backfaces,0:3]
+        face_indices = np.arange(len(faces))
+        faces, normals, face_indices, backface_indices = \
+            tr.backface_culling(faces, normals, face_indices)
+
+        edges = tr.backface_edge_culling(self._draw_shape.edges, backface_indices)
 
         light_vector = np.array([1., 1., -1.], dtype=np.float32)
 
         light_cos = np.inner(normals, light_vector) / \
             (np.linalg.norm(normals, axis=1) * np.linalg.norm(light_vector))
-        colors = [color_ramp(self._draw_color, c) for c in light_cos]
+        colors = np.array([color_ramp(self._draw_color, c) for c in light_cos])
 
-        return vertices, faces, colors
+        return vertices, faces, edges, colors, face_indices, backface_indices
 
     def render(self):
         cw = self.canvas.layout.content_width
         ch = self.canvas.layout.content_height
 
-        vertices, faces, colors = self.world_model()
+        vertices, faces, edges, colors, face_indices, backface_indices = \
+            self.world_model()
 
         vertices = tr.perspective(vertices, 2)
         screen_transform = tr.scale(cw/2, cw/2, -cw/2) @ tr.move(cw/2, 0, ch/2)
@@ -236,13 +241,24 @@ class Shapes(toga.App):
         self.canvas.clear()
         with self.canvas.fill(color='white') as fill:
             fill.rect(x=0, y=0, width=cw, height=ch)
-        normals = tr.normals(vertices, faces)
-        pol_count = 0
-        for f, normal, color in zip(faces, normals, colors):
-            if normal[1] < 0:
-                continue
 
-            #with self.canvas.stroke(color='black', line_width=4.0) as stroke:
+        # Flip normals because we flipped the Z axis in screen transform
+        normals = -tr.normals(vertices, faces)
+        faces, normals, face_indices, backface_indices, colors = \
+            tr.backface_culling(faces, normals, face_indices, backface_indices, colors)
+        self.render_faces(vertices, faces, colors)
+
+        edges = tr.backface_edge_culling(edges, backface_indices)
+        edges = tr.backface_edge_culling(edges, face_indices)
+        self.render_edges(vertices, edges)
+
+        #self.draw_color_ramp()
+
+        self.canvas.redraw()
+
+    def render_faces(self, vertices, faces, colors):
+        pol_count = 0
+        for f, color in zip(faces, colors):
             with self.canvas.fill(color=color, preserve=True) as fill:
                 fill.move_to(vertices[f[0]][0], vertices[f[0]][2])
                 for v in f[1:]:
@@ -251,9 +267,49 @@ class Shapes(toga.App):
 
         self._polygons_display.text = '{} Polygons'.format(pol_count)
 
-        #self.draw_color_ramp()
+    def render_edges(self, vertices, edges):
+        cw = self.canvas.layout.content_width
 
-        self.canvas.redraw()
+        edges_by_vertices = dict()
+        for i, e in enumerate(edges):
+            edges_by_vertices.setdefault(e[0], deque()).append(i)
+            edges_by_vertices.setdefault(e[1], deque()).append(i)
+
+        if not edges_by_vertices:
+            return
+
+        # with self.canvas.fill(color='red') as fill:
+        #    edge_i = next(iter(edges_by_vertices.values()))[0]
+        #    edge = edges[edge_i]
+        #    fill.arc(vertices[edge[0]][0], vertices[edge[0]][2], 7)
+
+        with self.canvas.stroke(color='black', line_width=max(cw*0.01, 4.0)) as stroke:
+            while edges_by_vertices:
+                stroke.new_path()
+                edge_i = next(iter(edges_by_vertices.values()))[0]
+                edge = edges[edge_i]
+                starting_point = edge[0]
+                stroke.move_to(vertices[edge[0]][0], vertices[edge[0]][2])
+                while True:
+                    stroke.line_to(vertices[edge[1]][0], vertices[edge[1]][2])
+                    if edge[1] == starting_point:
+                        stroke.closed_path(vertices[edge[1]][0], vertices[edge[1]][2])
+                    edges_by_vertices[edge[0]].remove(edge_i)
+                    edges_by_vertices[edge[1]].remove(edge_i)
+                    if not edges_by_vertices[edge[0]]:
+                        del(edges_by_vertices[edge[0]])
+                    if not edges_by_vertices[edge[1]]:
+                        del(edges_by_vertices[edge[1]])
+                        break
+                    next_idx = edge[1]
+                    edge_i = edges_by_vertices[next_idx][0]
+                    edge = edges[edge_i]
+                    if edge[1] == next_idx:
+                        edge[0], edge[1] = edge[1], edge[0]
+
+            #for e in edges:
+            #    stroke.move_to(vertices[e[0]][0], vertices[e[0]][2])
+            #    stroke.line_to(vertices[e[1]][0], vertices[e[1]][2])
 
     def draw_color_ramp(self, base_color=None, amount=40, x=0, y=0, w=None, h=20):
         if base_color is None:
