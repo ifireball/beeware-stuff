@@ -254,15 +254,21 @@ class Shapes(toga.App):
 
         #self.draw_color_ramp()
 
+        # with self.canvas.stroke(color='red', line_width=max(cw*0.015, 6.0)) as stroke:
+        #     with stroke.closed_path(cw/2, cw/4) as path:
+        #         path.line_to(cw*3/4, cw/2)
+        #         path.line_to(cw/2, cw*3/4)
+        #         path.line_to(cw/4, cw/2)
+
         self.canvas.redraw()
 
     def render_faces(self, vertices, faces, colors):
         pol_count = 0
         for f, color in zip(faces, colors):
-            with self.canvas.fill(color=color, preserve=True) as fill:
-                fill.move_to(vertices[f[0]][0], vertices[f[0]][2])
-                for v in f[1:]:
-                    fill.line_to(vertices[v][0], vertices[v][2])
+            with self.canvas.fill(color=color) as fill:
+                with fill.closed_path(vertices[f[0]][0], vertices[f[0]][2]) as polygon:
+                    for v in f[1:]:
+                        polygon.line_to(vertices[v][0], vertices[v][2])
             pol_count += 1
 
         self._polygons_display.text = '{} Polygons'.format(pol_count)
@@ -285,27 +291,36 @@ class Shapes(toga.App):
 
         with self.canvas.stroke(color='black', line_width=max(cw*0.01, 4.0)) as stroke:
             while edges_by_vertices:
-                stroke.new_path()
                 edge_i = next(iter(edges_by_vertices.values()))[0]
                 edge = edges[edge_i]
-                starting_point = edge[0]
-                stroke.move_to(vertices[edge[0]][0], vertices[edge[0]][2])
-                while True:
-                    stroke.line_to(vertices[edge[1]][0], vertices[edge[1]][2])
-                    if edge[1] == starting_point:
-                        stroke.closed_path(vertices[edge[1]][0], vertices[edge[1]][2])
-                    edges_by_vertices[edge[0]].remove(edge_i)
-                    edges_by_vertices[edge[1]].remove(edge_i)
-                    if not edges_by_vertices[edge[0]]:
-                        del(edges_by_vertices[edge[0]])
-                    if not edges_by_vertices[edge[1]]:
-                        del(edges_by_vertices[edge[1]])
-                        break
-                    next_idx = edge[1]
-                    edge_i = edges_by_vertices[next_idx][0]
-                    edge = edges[edge_i]
-                    if edge[1] == next_idx:
-                        edge[0], edge[1] = edge[1], edge[0]
+                #starting_point = edge[0]
+                #stroke.move_to(vertices[edge[0]][0], vertices[edge[0]][2])
+                with stroke.closed_path(vertices[edge[0]][0], vertices[edge[0]][2]) as line:
+                    while True:
+                        #stroke.line_to(vertices[edge[1]][0], vertices[edge[1]][2])
+                        #if edge[1] == starting_point:
+                        #    stroke.closed_path(vertices[edge[1]][0], vertices[edge[1]][2])
+                        edges_by_vertices[edge[0]].remove(edge_i)
+                        edges_by_vertices[edge[1]].remove(edge_i)
+                        if not edges_by_vertices[edge[0]]:
+                            # If its the last edge starting with the vertex,
+                            # remove the dequeue
+                            del(edges_by_vertices[edge[0]])
+                        if not edges_by_vertices[edge[1]]:
+                            # If its the last edge ending with the vertex,
+                            # remove the dequeue and exit the loop before
+                            # drawing because the `closed_path` context will
+                            # close the polygon for us
+                            del(edges_by_vertices[edge[1]])
+                            break
+                        line.line_to(vertices[edge[1]][0], vertices[edge[1]][2])
+                        next_idx = edge[1]
+                        edge_i = edges_by_vertices[next_idx][0]
+                        edge = edges[edge_i]
+                        if edge[1] == next_idx:
+                            # If next edge found ends with the vertex with
+                            # sitting on, flip its direction.
+                            edge[0], edge[1] = edge[1], edge[0]
 
             #for e in edges:
             #    stroke.move_to(vertices[e[0]][0], vertices[e[0]][2])
