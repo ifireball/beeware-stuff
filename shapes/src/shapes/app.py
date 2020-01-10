@@ -88,7 +88,7 @@ class Shapes(toga.App):
 
     def make_shapes_box(self):
         self.shape_select = toga.Selection(
-            items=['Cylinder', 'Cone'],
+            items=['Cylinder', 'Cone', 'Duble Cone'],
             style=Pack(width=132),
             on_select = self.set_draw_shape,
         )
@@ -341,8 +341,11 @@ class Shapes(toga.App):
 
     def set_draw_shape(self, widget):
         shape_func = models.cylinder
+        print('selected shape: {}'.format(self.shape_select.value))
         if self.shape_select.value == 'Cone':
             shape_func = models.cone
+        elif self.shape_select.value == 'Duble Cone':
+            shape_func = models.duble_cone
         self._draw_shape = shape_func(int(self.shape_segments.value))
         self.render()
 
